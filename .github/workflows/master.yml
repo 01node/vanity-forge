@@ -27,9 +27,9 @@ jobs:
       run: |
         go build
 
-    - name: Test and create coverage
+    - name: Test
       run: |
-        go test -race -shuffle=on -coverprofile=coverage.txt -covermode=atomic
+        go test -race -shuffle=on
 
   github-publish:
     # Only publish if all other jobs succeed
