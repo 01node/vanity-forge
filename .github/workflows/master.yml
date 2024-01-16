@@ -19,14 +19,14 @@ jobs:
     - uses: actions/setup-go@v2
       with:
         go-version: '^1.17.0'
+        
+    - name: Build
+      run: |
+        go build
 
     - name: Test and create coverage
       run: |
         go test -race -shuffle=on -coverprofile=coverage.txt -covermode=atomic
-
-    - name: Build
-      run: |
-        go build
 
   github-publish:
     # Only publish if all other jobs succeed
