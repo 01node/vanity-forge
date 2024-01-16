@@ -13,7 +13,7 @@ VanityForge is a powerful CLI tool designed for generating Tendermint Chains van
 ## Getting Started
 
 ### Installation
-Download the latest binary releases from the [_Releases_](#) page.
+Download the latest binary releases from the [_Releases_](https://github.com/01node/vanity-forge/releases) page. .
 
 If you don't want to use the binaries you can also build from source:
 
