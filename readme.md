@@ -1,7 +1,7 @@
 # VanityForge
 ![VanityForge](https://vhs.charm.sh/vhs-328VUMdxvRha1adlp4fTx3.gif)
 ## Introduction
-VanityForge is a powerful CLI tool designed for generating blockchain Vanity addresses with efficiency and ease. It supports multiple networks offering a wide range of customization options for address generation. (See Supported Chains)
+VanityForge is a powerful CLI tool designed for generating blockchain Vanity addresses with efficiency and ease. It supports multiple networks offering a wide range of customization options for address generation. (See [_Supported Chains_](#supported-chains))
 
 ## Key Features
 - **Generate Bech32 Vanity Addresses**: Create personalized addresses with specific patterns.
