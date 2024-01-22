@@ -5,37 +5,9 @@ import (
 	"strings"
 )
 
-type matcher struct {
-	Mode            string
-	SearchString    string
-	Chain           string
-	RequiredLetters int
-	RequiredDigits  int
-}
-
-// The Bech32 alphabet contains 32 characters, including lowercase letters a-z and the numbers 0-9, excluding the number 1 and the letters 'b', 'i', 'o' to avoid reader confusion.
-
-const bech32digits = "023456789"
-const bech32letters = "acdefghjklmnpqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ"
-
-// This is alphanumeric chars minus chars "1", "b", "i", "o" (case insensitive)
-const bech32chars = bech32digits + bech32letters
-
-func bech32Only(s string) bool {
-	return countUnionChars(s, bech32chars) == len(s)
-}
-
-func countUnionChars(s string, letterSet string) int {
-	count := 0
-	for _, char := range s {
-		if strings.Contains(letterSet, string(char)) {
-			count++
-		}
-	}
-	return count
-}
-
-func (m matcher) MatchDefault(candidate string) bool {
+// MatchWithMode matches the candidate string with the specified mode in the matcher.
+// It returns true if the candidate matches the mode, otherwise false.
+func (m matcher) MatchWithMode(candidate string) bool {
 	switch m.Mode {
 	case "contains":
 		return strings.Contains(candidate, m.SearchString)
@@ -54,49 +26,155 @@ func (m matcher) MatchDefault(candidate string) bool {
 	}
 }
 
+// Match checks if the candidate string matches the criteria specified in the matcher.
+// It trims the prefix from the candidate, checks the required amount of digits and letters,
+// and then calls MatchWithMode to perform the matching based on the mode.
+// It returns true if the candidate matches the criteria, otherwise false.
 func (m matcher) Match(candidate string) bool {
-	// Get chain prefix
-	prefix := prefixFromChain(m.Chain)
-	// Trim prefix from candidate
-	candidate = strings.TrimPrefix(candidate, prefix)
+	candidate = strings.TrimPrefix(candidate, m.Chain.PrefixFull)
 
-	// Check if candidate contains required amount of digits
-	if countUnionChars(candidate, bech32digits) < m.RequiredDigits {
+	if !m.CheckRequiredDigits(candidate, m.RequiredDigits) {
 		return false
 	}
 
-	// Check if candidate contains required amount of letters
-	if countUnionChars(candidate, bech32letters) < m.RequiredLetters {
+	if !m.CheckRequiredLetters(candidate, m.RequiredLetters) {
 		return false
 	}
 
-	return m.MatchDefault(candidate)
+	return m.MatchWithMode(candidate)
 }
 
-func (m matcher) ValidationErrors() []string {
-	var errs []string
-	if !bech32Only(m.SearchString) {
-		errs = append(errs, "ERROR: SearchString contains bech32 incompatible characters")
+// ValidateInput validates the input parameters of the matcher and returns any validation errors.
+// It dynamically selects the appropriate generator based on the encryption type in the chain,
+// and then calls the generator's ValidateInput method.
+// It returns a slice of validation error messages.
+func (m matcher) ValidateInput() []string {
+	var generatorValidate func(SearchString string, RequiredLetters, RequiredDigits int) []string
+
+	switch m.Chain.Encryption {
+	case Secp256k1:
+		var secp256k1generator = secp256k1Wallet{
+			Chain: m.Chain,
+		}
+
+		generatorValidate = secp256k1generator.ValidateInput
+	case ECSDA:
+		var ecsdagenerator = ecsdaWallet{
+			Chain: m.Chain,
+		}
+
+		generatorValidate = ecsdagenerator.ValidateInput
+	default:
+		var secp256k1generator = secp256k1Wallet{
+			Chain: m.Chain,
+		}
+		generatorValidate = secp256k1generator.ValidateInput
 	}
-	if len(m.SearchString) > 38 {
-		errs = append(errs, "ERROR: SearchString is too long. Must be max 38 characters.")
-	}
-	if m.RequiredDigits < 0 || m.RequiredLetters < 0 {
-		errs = append(errs, "ERROR: Can't require negative amount of characters")
-	}
-	if m.RequiredDigits+m.RequiredLetters > 38 {
-		errs = append(errs, "ERROR: Can't require more than 38 characters")
-	}
-	return errs
+
+	return generatorValidate(m.SearchString, m.RequiredLetters, m.RequiredDigits)
 }
 
+// CheckRequiredDigits checks if the candidate string contains the required amount of digits.
+// It dynamically selects the appropriate generator based on the encryption type in the chain,
+// and then calls the generator's CheckRequiredDigits method.
+// It returns true if the candidate contains the required amount of digits, otherwise false.
+func (m matcher) CheckRequiredDigits(candidate string, required int) bool {
+	var gcrd func(candidate string, required int) bool
+
+	switch m.Chain.Encryption {
+	case Secp256k1:
+		var secp256k1generator = secp256k1Wallet{
+			Chain: m.Chain,
+		}
+
+		gcrd = secp256k1generator.CheckRequiredDigits
+	case ECSDA:
+		var ecsdagenerator = ecsdaWallet{
+			Chain: m.Chain,
+		}
+
+		gcrd = ecsdagenerator.CheckRequiredDigits
+	default:
+		var secp256k1generator = secp256k1Wallet{
+			Chain: m.Chain,
+		}
+		gcrd = secp256k1generator.CheckRequiredDigits
+	}
+
+	return gcrd(candidate, required)
+}
+
+// CheckRequiredLetters checks if the candidate string contains the required amount of letters.
+// It dynamically selects the appropriate generator based on the encryption type in the chain,
+// and then calls the generator's CheckRequiredLetters method.
+// It returns true if the candidate contains the required amount of letters, otherwise false.
+func (m matcher) CheckRequiredLetters(candidate string, required int) bool {
+	var gcrl func(candidate string, required int) bool
+
+	switch m.Chain.Encryption {
+	case Secp256k1:
+		var secp256k1generator = secp256k1Wallet{
+			Chain: m.Chain,
+		}
+
+		gcrl = secp256k1generator.CheckRequiredLetters
+	case ECSDA:
+		var ecsdagenerator = ecsdaWallet{
+			Chain: m.Chain,
+		}
+
+		gcrl = ecsdagenerator.CheckRequiredLetters
+	default:
+		var secp256k1generator = secp256k1Wallet{
+			Chain: m.Chain,
+		}
+		gcrl = secp256k1generator.CheckRequiredLetters
+	}
+
+	return gcrl(candidate, required)
+}
+
+// GenerateWallet generates a wallet based on the encryption type in the chain.
+// It dynamically selects the appropriate generator based on the encryption type in the chain,
+// and then calls the generator's GenerateWallet method.
+// It returns the generated wallet.
+func (m matcher) GenerateWallet() wallet {
+	var generate func() wallet
+
+	switch m.Chain.Encryption {
+	case Secp256k1:
+		var secp256k1generator = secp256k1Wallet{
+			Chain: m.Chain,
+		}
+
+		generate = secp256k1generator.GenerateWallet
+	case ECSDA:
+		var ecsdagenerator = ecsdaWallet{
+			Chain: m.Chain,
+		}
+
+		generate = ecsdagenerator.GenerateWallet
+	default:
+		var secp256k1generator = secp256k1Wallet{
+			Chain: m.Chain,
+		}
+		generate = secp256k1generator.GenerateWallet
+	}
+
+	return generate()
+}
+
+// findMatchingWallets finds matching wallets based on the matcher criteria and sends them to the channel.
+// It runs in a loop until the quit signal is received.
+// It generates a wallet using the GenerateWallet method and checks if it matches the criteria using the Match method.
+// If a match is found, it sends the wallet to the channel.
 func findMatchingWallets(ch chan wallet, quit chan struct{}, m matcher) {
 	for {
 		select {
 		case <-quit:
 			return
 		default:
-			w := generateWallet(m.Chain)
+			w := m.GenerateWallet()
 			if m.Match(w.Address) {
 				// Do a non-blocking write instead of simple `ch <- w` to prevent
 				// blocking when it's time to quit and ch is full.
@@ -109,6 +187,10 @@ func findMatchingWallets(ch chan wallet, quit chan struct{}, m matcher) {
 	}
 }
 
+// findMatchingWalletConcurrent finds a matching wallet concurrently using multiple goroutines.
+// It creates a channel for sending and receiving wallets, and a quit channel for signaling the goroutines to stop.
+// It spawns the specified number of goroutines, each running the findMatchingWallets function.
+// It returns the first matching wallet received from the channel.
 func findMatchingWalletConcurrent(m matcher, goroutines int) wallet {
 	ch := make(chan wallet)
 	quit := make(chan struct{})

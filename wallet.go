@@ -1,32 +1,15 @@
 package main
 
-import (
-	"encoding/hex"
-
-	"github.com/cosmos/cosmos-sdk/types/bech32"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
-)
+import "encoding/hex"
 
 type wallet struct {
-	Address string
-	Pubkey  []byte
-	Privkey []byte
+	Address    string
+	PublicKey  []byte
+	PrivateKey []byte
 }
 
 func (w wallet) String() string {
-	return "Private key:\t" + hex.EncodeToString(w.Privkey) + "\n" +
-		"Public key:\t" + hex.EncodeToString(w.Pubkey) + "\n" +
+	return "Private key:\t" + hex.EncodeToString(w.PrivateKey) + "\n" +
+		"Public key:\t" + hex.EncodeToString(w.PublicKey) + "\n" +
 		"Address:\t" + w.Address
-}
-
-func generateWallet(chain string) wallet {
-	var prefix = internalPrefixFromChain(chain)
-	var privkey secp256k1.PrivKey = secp256k1.GenPrivKey()
-	var pubkey secp256k1.PubKey = privkey.PubKey().(secp256k1.PubKey)
-	bech32Addr, err := bech32.ConvertAndEncode(prefix, pubkey.Address())
-	if err != nil {
-		panic(err)
-	}
-
-	return wallet{bech32Addr, pubkey, privkey}
 }
